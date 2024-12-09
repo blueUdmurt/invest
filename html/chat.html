@@ -47,6 +47,29 @@
             padding: 10px;
             margin: 10px;
         }
+        .author{
+            display: block;
+            font-weight: bold;
+            text-decoration-line: underline;
+            padding-bottom: 10px;
+            font-size: large;
+        }
+        .time{
+            font-size: x-small;
+            display: block;
+            text-align: right;
+            padding-top: 10px;
+        }
+        .friend{
+            background-color: rgb(224, 77, 77);
+            border: 1px solid #999;
+        }
+
+        .me{
+            background-color: #7282bf;
+            border: 1px solid #261591;
+            align-self: flex-end;
+        }
 
     </style>
 </head>
@@ -63,13 +86,14 @@
             <input type ="button" value="Отправить" id="sent_message">
         </div>
     </div>
+    <script src ='https://chat.9pr.ru/socket.io/socket.io.js'></script>
     <script>
-        const me ='ren';//У каждого свой ник
+        const me ='re';//У каждого свой ник
         function newMessage(id,message,time,author){
             let div = document.createElement('div');
             div.id='message-'+id;
             if(author===undefined|| author===me){
-                dic.className='message me';
+                div.className='message me';
             } else{
                 div.className='message friend';
             }
@@ -99,12 +123,17 @@
             document.querySelector('#chat').appendChild(div);
             window.scrollTo({top:Math.ceil(document.querySelector('#chat').scrollHeight),behavior:'smooth',});
         }
-        
+        function sendMessageToServer(message){
+            socket.emit('sendMessage',{
+                'author':me,
+                'message':message,
+            });
+        }
         function sendMessage(){
             let message=document.querySelector('#message');
             let text=message.value;
             if (text.trim().length>0){
-                newMessage(text);
+                sendMessageToServer(text);
                 message.value='';
             }
         }
@@ -114,10 +143,36 @@
                 sendMessage();
             }
         }
+        
+            function getMessageFromServer(sec){
+                let xmlhttp=new XMLHttpRequest();
+                let url ='https://chat.9pr.ru/message/'+sec;
+                xmlhttp.open('GET',url);
+                xmlhttp.send(null);
+                xmlhttp.onload=()=>{
+                    let data=xmlhttp.responseText;
+                    data = JSON.parse(data);
+                    for(let i in data){
+                        if (document.querySelector('#message-'+data[i].id)==null){
+                            newMessage(data[i].id,data[i].message,data[i].time,data[i].author);
+                        }
+                    }
+                }
+                localStorage.setItem('time',Math.floor(Date.now()/1000));
+        }
+        
+
 
         window.onload = ()=>{
+            socket = io('https://chat.9pr.ru');
             document.querySelector('#sent_message').onclick=sendMessage;
             document.querySelector('#message').onkeyup=sendMessageKeyUp;
+            getMessageFromServer(0);
+            socket.on('connect',()=>{
+                socket.on('message',(body)=>{
+                    newMessage(body.id,body.message,body.time,body.author);
+                });
+            });
         }
          
        // for (let i=0;i<25;i++){
